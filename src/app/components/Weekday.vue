@@ -4,7 +4,10 @@
       <div class="weekday__title" v-if="weekday">{{weekday}}</div>
       <div class="weekday__date" v-if="fulldate">{{fulldate}}</div>
     </div>
-
+    <input type="text" name="task" placeholder="Nova Tarefa">
+    <ul class="weekday__list">
+      <li v-for="task in tasks">{{task}}</li>
+    </ul>
   </div>
 </template>
 
@@ -16,6 +19,7 @@ export default {
   name: 'weekday',
   data() {
     return {
+
     };
   },
   computed: {
@@ -39,11 +43,20 @@ export default {
       return isFuture(this.date);
     }
   },
+  methods: {
+    addTask() {
+
+    }
+  },
   components: {
     task
   },
   props: {
-    date: {required: true}
+    date: {required: true},
+    tasks: {
+      type: Array,
+      default: () => []
+    }
   }
 };
 </script>
@@ -64,6 +77,7 @@ export default {
 
     &__header {
       text-align: center;
+      margin-bottom: 1em;
     }
 
     &__title {

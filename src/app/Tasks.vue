@@ -37,6 +37,37 @@ export default {
       subDays(today, 2),
       addDays(today, 2)
     );
+
+    const request = window.indexedDB.open("tasks", "list of tasks yay");
+
+    request.onsuccess = (event) => {
+      const db = event.result;
+
+      if (+db.version !== 1) {
+        let createdObjectStoreCount = 0;
+
+        const schema = [
+          {name: "task", keyPath: "id", autoIncrement: true}
+        ];
+
+        function objectStoreCreated(event) {
+          if (++createdObjectStoreCount === schema.length) {
+            db.setVersion("1").onsuccess = () => {
+              console.log(db);
+            }
+          }
+
+          for (let i = 0; i < schema.length; i++) {
+            let params = schema[i];
+            let addRequest = db.createObjectStore(params.name, params.keyPath, params.autoIncrement);
+            addRequest.onsuccess = objectStoreCreated;
+          }
+        }
+
+      } else {
+        console.log(db);
+      }
+    }
   },
   methods: {
     daysBack(n) {
