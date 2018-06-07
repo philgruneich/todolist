@@ -9,6 +9,7 @@
       <weekday
         :date=date
         v-for="date, index in rangeOfDates"
+        @addTask="addTask($event)"
         :key=index
       ></weekday>
     </div>
@@ -23,11 +24,13 @@
 import weekday from './components/Weekday.vue';
 import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays } from 'date-fns';
 
+
 export default {
   name: 'Tasks',
   data() {
     return {
-      rangeOfDates: []
+      rangeOfDates: [],
+      queue: []
     };
   },
   created() {
@@ -38,34 +41,39 @@ export default {
       addDays(today, 2)
     );
 
-    const request = window.indexedDB.open("tasks", "list of tasks yay");
+    const request = window.indexedDB.open("tasks", 1);
+
+    request.onupgradeneeded = (event) => {
+      this.database = request.result;
+
+      const schema = [
+        {name: "task", keyPath: "id", autoIncrement: true, indexes: [
+          ["html", "html", {unique: false}],
+          ["rawtext", "rawtext", {unique: false, required: true}],
+          ["duedate", "duedate", {unique: false, required: true}],
+          ["done", "done", {unique: false, required: true}]
+        ]}];
+
+      for (let i = 0; i < schema.length; i++) {
+        let params = schema[i];
+        let addRequest = this.database.createObjectStore(params.name, {keyPath: params.keyPath, autoIncrement: params.autoIncrement}, );
+
+        (params.indexes || []).forEach((index) => {
+          addRequest.createIndex(...index)
+        });
+      }
+    }
 
     request.onsuccess = (event) => {
-      const db = event.result;
+      this.database = request.result;
+      let taskTransaction = this.database.transaction(['task']);
+      let taskObjectStore = taskTransaction.objectStore('task');
+      let taskRange = IDBKeyRange.bound(subDays(today, 2), addDays(today, 2));
+      let taskIndex = taskObjectStore.index('duedate');
+      let taskGet = taskIndex.get(taskRange);
 
-      if (+db.version !== 1) {
-        let createdObjectStoreCount = 0;
-
-        const schema = [
-          {name: "task", keyPath: "id", autoIncrement: true}
-        ];
-
-        function objectStoreCreated(event) {
-          if (++createdObjectStoreCount === schema.length) {
-            db.setVersion("1").onsuccess = () => {
-              console.log(db);
-            }
-          }
-
-          for (let i = 0; i < schema.length; i++) {
-            let params = schema[i];
-            let addRequest = db.createObjectStore(params.name, params.keyPath, params.autoIncrement);
-            addRequest.onsuccess = objectStoreCreated;
-          }
-        }
-
-      } else {
-        console.log(db);
+      taskGet.onsuccess = (event) => {
+        console.log(taskGet);
       }
     }
   },
@@ -85,6 +93,19 @@ export default {
         subDays(date, 2),
         addDays(date, 2)
       );
+    },
+
+    addTask(task) {
+      if (this.database) {
+        console.log(this.database);
+        let taskTransaction = this.database.transaction(["task"], "readwrite");
+        let taskObjectStore = taskTransaction.objectStore("task");
+        taskObjectStore.add(task);
+      }
+    },
+
+    loadData(db) {
+      this.database = db;
     }
   },
   components: {

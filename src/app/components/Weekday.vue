@@ -4,7 +4,9 @@
       <div class="weekday__title" v-if="weekday">{{weekday}}</div>
       <div class="weekday__date" v-if="fulldate">{{fulldate}}</div>
     </div>
-    <input type="text" name="task" placeholder="Nova Tarefa">
+    <form action="" @submit="addTask($event)">
+      <input type="text" name="task" placeholder="Nova Tarefa" v-model="task">
+    </form>
     <ul class="weekday__list">
       <li v-for="task in tasks">{{task}}</li>
     </ul>
@@ -14,12 +16,13 @@
 <script>
 import task from './Task.vue';
 import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays } from 'date-fns';
+import marked from 'marked';
 
 export default {
   name: 'weekday',
   data() {
     return {
-
+      task: ""
     };
   },
   computed: {
@@ -44,8 +47,18 @@ export default {
     }
   },
   methods: {
-    addTask() {
+    addTask(event) {
+      event.preventDefault();
+      let t = {
+        html: marked(this.task),
+        rawtext: this.task,
+        duedate: this.date,
+        done: false
+      }
 
+      this.task = '';
+
+      this.$emit('addTask', t);
     }
   },
   components: {
