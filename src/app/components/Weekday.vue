@@ -8,7 +8,7 @@
       <input type="text" name="task" placeholder="Nova Tarefa" v-model="task">
     </form>
     <ul class="weekday__list">
-      <li v-for="task in tasks">{{task}}</li>
+      <task v-for="task, index in tasks" :task=task :key=index></task>
     </ul>
   </div>
 </template>
@@ -49,8 +49,13 @@ export default {
   methods: {
     addTask(event) {
       event.preventDefault();
+      var markedRenderer = new marked.Renderer() ;
+      markedRenderer.paragraph = function(text) {
+        return text + '\n';
+      };
+
       let t = {
-        html: marked(this.task),
+        html: marked(this.task, {renderer: markedRenderer, gfm: true}),
         rawtext: this.task,
         duedate: this.date,
         done: false
@@ -100,6 +105,12 @@ export default {
 
     &__date {
       font-size: .75em;
+    }
+
+    &__list {
+      padding: 0;
+      list-style: none;
+      margin: 0;
     }
   }
 </style>

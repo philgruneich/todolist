@@ -8,6 +8,7 @@
     <div class="container">
       <weekday
         :date=date
+        :tasks=tasks[index]
         v-for="date, index in rangeOfDates"
         @addTask="addTask($event)"
         :key=index
@@ -22,7 +23,7 @@
 
 <script>
 import weekday from './components/Weekday.vue';
-import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays } from 'date-fns';
+import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays, isSameDay } from 'date-fns';
 
 
 export default {
@@ -30,7 +31,8 @@ export default {
   data() {
     return {
       rangeOfDates: [],
-      queue: []
+      queue: [],
+      cachedData: []
     };
   },
   created() {
@@ -66,15 +68,20 @@ export default {
 
     request.onsuccess = (event) => {
       this.database = request.result;
-      let taskTransaction = this.database.transaction(['task']);
-      let taskObjectStore = taskTransaction.objectStore('task');
-      let taskRange = IDBKeyRange.bound(subDays(today, 2), addDays(today, 2));
-      let taskIndex = taskObjectStore.index('duedate');
-      let taskGet = taskIndex.get(taskRange);
+      this.loadData();
+    }
+  },
+  computed: {
+    tasks() {
+      return this.rangeOfDates.map((date) => {
+        let lookup = this.cachedData.find((cache) => {
+          return isSameDay(cache.day, date);
+        });
 
-      taskGet.onsuccess = (event) => {
-        console.log(taskGet);
-      }
+        if (lookup) return lookup.tasks;
+
+        return [];
+      });
     }
   },
   methods: {
@@ -82,30 +89,65 @@ export default {
       this.rangeOfDates = this.rangeOfDates.map((date) => {
         return subDays(date, +n);
       });
+
+      this.loadData();
     },
     daysForward(n) {
       this.rangeOfDates = this.rangeOfDates.map((date) => {
         return addDays(date, +n);
       });
+
+      this.loadData();
     },
     setDate(date=new Date()) {
       this.rangeOfDates = eachDay(
         subDays(date, 2),
         addDays(date, 2)
       );
+
+      this.loadData();
     },
 
     addTask(task) {
       if (this.database) {
-        console.log(this.database);
         let taskTransaction = this.database.transaction(["task"], "readwrite");
         let taskObjectStore = taskTransaction.objectStore("task");
-        taskObjectStore.add(task);
+        let taskAdd = taskObjectStore.add(task);
+        taskAdd.onsuccess = (event) => {
+          task.id = event.target.result;
+          this.addTaskToCache(task);
+        }
       }
     },
 
-    loadData(db) {
-      this.database = db;
+    addTaskToCache(task) {
+      let cacheIndex = this.cachedData.findIndex((cache) => {
+        return isSameDay(cache.day, task.duedate);
+      });
+
+      if (cacheIndex > -1) {
+
+        if (!this.cachedData[cacheIndex].tasks.some((cache) => {
+          return cache.id == task.id;
+        })) this.cachedData[cacheIndex].tasks.push(task);
+      } else {
+        this.cachedData.push({
+          day: task.duedate,
+          tasks: [ task ]
+        });
+      }
+    },
+
+    loadData() {
+      let taskTransaction = this.database.transaction(['task']);
+      let taskObjectStore = taskTransaction.objectStore('task');
+      let taskRange = IDBKeyRange.bound(this.rangeOfDates[0], this.rangeOfDates[4]);
+      let taskIndex = taskObjectStore.index('duedate');
+      let taskGet = taskIndex.getAll(taskRange);
+
+      taskGet.onsuccess = (event) => {
+        taskGet.result.forEach(this.addTaskToCache.bind(this));
+      }
     }
   },
   components: {
