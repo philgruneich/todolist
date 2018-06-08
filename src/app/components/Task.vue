@@ -1,17 +1,40 @@
 <template>
   <li class="task">
-    <input type="checkbox" v-model="task.done" />
-    <div v-html="task.html" :class="{'is--done': task.done}"></div>
+    <input type="checkbox" v-model="task.done" @change="toggleTask(task)" />
+    <div v-html="visibleTask" :class="{'is--done': task.done}" :contenteditable="!task.done" @focus="visibleTask = task.rawtext" @blur="editTask($event)"></div>
   </li>
 </template>
 
 <script>
+import marked from 'marked';
+
 export default {
   name: 'task',
   data() {
     return {
-
+      visibleTask: this.task.html
     };
+  },
+  methods: {
+    toggleTask(task) {
+      this.$emit('update', task);
+    },
+    editTask(event) {
+      let markedRenderer = new marked.Renderer() ;
+      markedRenderer.paragraph = function(text) {
+        return text + '\n';
+      };
+
+      let rawtext = event.target.textContent;
+      let newHtml = marked(rawtext, {renderer: markedRenderer, gfm: true});
+
+      this.visibleTask = newHtml;
+
+      this.task.rawtext = rawtext;
+      this.task.html = newHtml;
+
+      this.$emit('update', this.task);
+    }
   },
   props: {
     task: {required: true}

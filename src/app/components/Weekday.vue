@@ -4,11 +4,11 @@
       <div class="weekday__title" v-if="weekday">{{weekday}}</div>
       <div class="weekday__date" v-if="fulldate">{{fulldate}}</div>
     </div>
-    <form action="" @submit="addTask($event)">
-      <input type="text" name="task" placeholder="Nova Tarefa" v-model="task">
+    <form action="" @submit.prevent="addTask($event)">
+      <input type="text" name="task" placeholder="Nova Tarefa" v-model="task" autocomplete="off">
     </form>
     <ul class="weekday__list">
-      <task v-for="task, index in tasks" :task=task :key=index></task>
+      <task v-for="task, index in tasks" :task=task :key=index @update="updateTask($event)"></task>
     </ul>
   </div>
 </template>
@@ -48,7 +48,7 @@ export default {
   },
   methods: {
     addTask(event) {
-      event.preventDefault();
+      // event.preventDefault();
       var markedRenderer = new marked.Renderer() ;
       markedRenderer.paragraph = function(text) {
         return text + '\n';
@@ -64,7 +64,11 @@ export default {
       this.task = '';
 
       this.$emit('addTask', t);
-    }
+    },
+
+    updateTask(task) {
+      this.$emit('updateTask', task);
+    },
   },
   components: {
     task
@@ -84,6 +88,10 @@ export default {
     flex: 1 0 20%;
     padding: 1em;
     font-family: sans-serif;
+
+    + .weekday {
+      border-left: 1px solid #000;
+    }
 
     &.is--past {
       color: #778ca3;

@@ -11,6 +11,7 @@
         :tasks=tasks[index]
         v-for="date, index in rangeOfDates"
         @addTask="addTask($event)"
+        @updateTask="updateTask($event)"
         :key=index
       ></weekday>
     </div>
@@ -31,7 +32,7 @@ export default {
   data() {
     return {
       rangeOfDates: [],
-      queue: [],
+      queue: Promise.resolve(),
       cachedData: []
     };
   },
@@ -118,6 +119,39 @@ export default {
           this.addTaskToCache(task);
         }
       }
+    },
+
+    updateTask(task) {
+
+      this.queue.then(() => {
+        return new Promise((resolve, reject) => {
+          if (this.database) {
+            let taskTransaction = this.database.transaction(["task"], "readwrite");
+            let taskObjectStore = taskTransaction.objectStore("task");
+            let taskPut = taskObjectStore.put(task);
+            taskPut.onsuccess = (event) => {
+              let cacheIndex = this.cachedData.findIndex((cache) => {
+                return isSameDay(cache.day, task.duedate);
+              });
+
+              if (cacheIndex > -1) {
+                let taskIndex  = this.cachedData[cacheIndex].tasks.findIndex((cache) => {
+                  return cache.id == task.id;
+                });
+
+                if (taskIndex > -1) this.cachedData[cacheIndex].tasks[taskIndex] = task;
+              }
+
+              return resolve(task);
+            }
+
+            taskPut.onerror = (error) => {
+              console.error(error);
+              return reject(task);
+            }
+          }
+        });
+      })
     },
 
     addTaskToCache(task) {
