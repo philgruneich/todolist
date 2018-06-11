@@ -12,6 +12,7 @@
         v-for="date, index in rangeOfDates"
         @addTask="addTask($event)"
         @updateTask="updateTask($event)"
+        @updateList="updateList($event)"
         :key=index
       ></weekday>
     </div>
@@ -54,7 +55,8 @@ export default {
           ["html", "html", {unique: false}],
           ["rawtext", "rawtext", {unique: false, required: true}],
           ["duedate", "duedate", {unique: false, required: true}],
-          ["done", "done", {unique: false, required: true}]
+          ["done", "done", {unique: false, required: true}],
+          ["order", "order", {unique: false, required: true}]
         ]}];
 
       for (let i = 0; i < schema.length; i++) {
@@ -111,9 +113,16 @@ export default {
 
     addTask(task) {
       if (this.database) {
+        let cacheIndex = this.cachedData.findIndex((cache) => {
+          return isSameDay(cache.day, task.duedate);
+        });
+
+        task.order = (cacheIndex > -1) ? (this.cachedData[cacheIndex].tasks.length || 0) : 0;
+
         let taskTransaction = this.database.transaction(["task"], "readwrite");
         let taskObjectStore = taskTransaction.objectStore("task");
         let taskAdd = taskObjectStore.add(task);
+
         taskAdd.onsuccess = (event) => {
           task.id = event.target.result;
           this.addTaskToCache(task);
@@ -121,14 +130,21 @@ export default {
       }
     },
 
-    updateTask(task) {
+    updateList(tasks) {
+      (tasks || []).forEach((t, i) => {
+        t.order = i;
+        this.updateTask(t);
+      });
+    },
 
+    updateTask(task) {
       this.queue.then(() => {
         return new Promise((resolve, reject) => {
           if (this.database) {
             let taskTransaction = this.database.transaction(["task"], "readwrite");
             let taskObjectStore = taskTransaction.objectStore("task");
             let taskPut = taskObjectStore.put(task);
+
             taskPut.onsuccess = (event) => {
               let cacheIndex = this.cachedData.findIndex((cache) => {
                 return isSameDay(cache.day, task.duedate);

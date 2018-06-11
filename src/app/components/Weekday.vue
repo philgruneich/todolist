@@ -7,9 +7,9 @@
     <form action="" @submit.prevent="addTask($event)">
       <input type="text" name="task" placeholder="Nova Tarefa" v-model="task" autocomplete="off">
     </form>
-    <ul class="weekday__list">
-      <task v-for="task, index in tasks" :task=task :key=index @update="updateTask($event)"></task>
-    </ul>
+      <draggable class="weekday__list" v-model="sorteredTasks">
+        <task v-for="task, index in sorteredTasks" :task=task :key=index @update="updateTask($event)"></task>
+      </draggable>
   </div>
 </template>
 
@@ -17,6 +17,7 @@
 import task from './Task.vue';
 import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays } from 'date-fns';
 import marked from 'marked';
+import draggable from 'vuedraggable';
 
 export default {
   name: 'weekday',
@@ -44,6 +45,23 @@ export default {
 
     future() {
       return isFuture(this.date);
+    },
+
+    sorteredTasks: {
+      cache: true,
+      get() {
+        return this.tasks.sort((a, b) => +a.order - +b.order) || [];
+      },
+
+      set(taskList) {
+        let list = taskList.map((t, i) => {
+          t.order = i;
+          return t;
+        });
+
+        this.$emit('updateList', list);
+        return list;
+      }
     }
   },
   methods: {
@@ -71,7 +89,8 @@ export default {
     },
   },
   components: {
-    task
+    task,
+    draggable
   },
   props: {
     date: {required: true},

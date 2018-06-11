@@ -1,8 +1,8 @@
 <template>
-  <li class="task">
+  <div class="task">
     <input type="checkbox" v-model="task.done" @change="toggleTask(task)" />
     <div v-html="visibleTask" :class="{'is--done': task.done}" :contenteditable="!task.done" @focus="visibleTask = task.rawtext" @blur="editTask($event)"></div>
-  </li>
+  </div>
 </template>
 
 <script>
@@ -12,7 +12,6 @@ export default {
   name: 'task',
   data() {
     return {
-      visibleTask: this.task.html
     };
   },
   methods: {
@@ -34,6 +33,11 @@ export default {
       this.task.html = newHtml;
 
       this.$emit('update', this.task);
+    }
+  },
+  computed: {
+    visibleTask() {
+      return this.task.html;
     }
   },
   props: {
