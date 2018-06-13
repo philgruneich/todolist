@@ -12,6 +12,7 @@ export default {
   name: 'task',
   data() {
     return {
+      visibleTask: ''
     };
   },
   methods: {
@@ -35,10 +36,9 @@ export default {
       this.$emit('update', this.task);
     }
   },
-  computed: {
-    visibleTask() {
-      return this.task.html;
-    }
+
+  mounted() {
+    this.visibleTask = this.task.html;
   },
   props: {
     task: {required: true}

@@ -5,17 +5,17 @@
       <div class="weekday__date" v-if="fulldate">{{fulldate}}</div>
     </div>
     <form action="" @submit.prevent="addTask($event)">
-      <input type="text" name="task" placeholder="Nova Tarefa" v-model="task" autocomplete="off">
+      <input type="text" name="task" placeholder="Nova Tarefa" v-model="new_task" autocomplete="off">
     </form>
-      <draggable class="weekday__list" v-model="sorteredTasks">
-        <task v-for="task, index in sorteredTasks" :task=task :key=index @update="updateTask($event)"></task>
-      </draggable>
+    <draggable class="weekday__list" @update="updateList($event)">
+      <task v-for="task, index in sorteredTasks" :task=task :key=task.id @update="updateTask($event)"></task>
+    </draggable>
   </div>
 </template>
 
 <script>
 import task from './Task.vue';
-import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays } from 'date-fns';
+import { format, isPast, isFuture, isToday } from 'date-fns';
 import marked from 'marked';
 import draggable from 'vuedraggable';
 
@@ -23,7 +23,8 @@ export default {
   name: 'weekday',
   data() {
     return {
-      task: ""
+      new_task: "",
+      localTasks: []
     };
   },
   computed: {
@@ -47,24 +48,28 @@ export default {
       return isFuture(this.date);
     },
 
-    sorteredTasks: {
-      cache: true,
-      get() {
-        return this.tasks.sort((a, b) => +a.order - +b.order) || [];
-      },
-
-      set(taskList) {
-        let list = taskList.map((t, i) => {
-          t.order = i;
-          return t;
-        });
-
-        this.$emit('updateList', list);
-        return list;
+    sorteredTasks() {
+      return this.localTasks.sort((a, b) => +a.order - +b.order) || [];
+    }
+  },
+  watch: {
+    'tasks': {
+      handler(tasks) {
+        this.localTasks = this.tasks;
       }
     }
   },
   methods: {
+    array_move(arr, old_index, new_index) {
+      if (new_index >= arr.length) {
+        var k = new_index - arr.length + 1;
+        while (k--) {
+          arr.push(undefined);
+        }
+      }
+      arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
+      return arr; // for testing
+    },
     addTask(event) {
       // event.preventDefault();
       var markedRenderer = new marked.Renderer() ;
@@ -73,13 +78,13 @@ export default {
       };
 
       let t = {
-        html: marked(this.task, {renderer: markedRenderer, gfm: true}),
-        rawtext: this.task,
+        html: marked(this.new_task, {renderer: markedRenderer, gfm: true}),
+        rawtext: this.new_task,
         duedate: this.date,
         done: false
       }
 
-      this.task = '';
+      this.new_task = '';
 
       this.$emit('addTask', t);
     },
@@ -87,6 +92,16 @@ export default {
     updateTask(task) {
       this.$emit('updateTask', task);
     },
+
+    updateList(event) {
+      let tasks = this.array_move(this.localTasks, event.oldIndex, event.newIndex);
+      let list = tasks.map((t, i) => {
+        t.order = i;
+        return t;
+      });
+      this.localTasks = list;
+      this.$emit('updateList', list);
+    }
   },
   components: {
     task,

@@ -13,7 +13,7 @@
         @addTask="addTask($event)"
         @updateTask="updateTask($event)"
         @updateList="updateList($event)"
-        :key=index
+        :key=date.toString()
       ></weekday>
     </div>
     <aside>
@@ -143,7 +143,7 @@ export default {
           if (this.database) {
             let taskTransaction = this.database.transaction(["task"], "readwrite");
             let taskObjectStore = taskTransaction.objectStore("task");
-            let taskPut = taskObjectStore.put(task);
+            let taskPut = task.rawtext.length ? taskObjectStore.put(task) : taskObjectStore.delete(task.id);
 
             taskPut.onsuccess = (event) => {
               let cacheIndex = this.cachedData.findIndex((cache) => {
@@ -155,7 +155,13 @@ export default {
                   return cache.id == task.id;
                 });
 
-                if (taskIndex > -1) this.cachedData[cacheIndex].tasks[taskIndex] = task;
+                if (taskIndex > -1) {
+                  if (task.rawtext.length) {
+                    this.cachedData[cacheIndex].tasks[taskIndex] = task;
+                  } else {
+                    this.cachedData[cacheIndex].tasks.splice(taskIndex, 1);
+                  }
+                }
               }
 
               return resolve(task);
