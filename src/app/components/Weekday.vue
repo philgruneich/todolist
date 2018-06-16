@@ -4,11 +4,11 @@
       <div class="weekday__title" v-if="weekday">{{weekday}}</div>
       <div class="weekday__date" v-if="fulldate">{{fulldate}}</div>
     </div>
-    <form action="" @submit.prevent="addTask($event)">
+    <form action="" @submit.prevent="addTask">
       <input type="text" name="task" placeholder="Nova Tarefa" v-model="new_task" autocomplete="off">
     </form>
-    <draggable class="weekday__list" @update="updateList($event)">
-      <task v-for="task, index in sorteredTasks" :task=task :key=task.id @update="updateTask($event)"></task>
+    <draggable class="weekday__list" @update="updateList" @remove="removedFromList" @add="addedToList" :options=options v-model="localTasks">
+      <task v-for="task, index in localTasks" :task=task :key=task.id @update="updateTask"></task>
     </draggable>
   </div>
 </template>
@@ -24,7 +24,10 @@ export default {
   data() {
     return {
       new_task: "",
-      localTasks: []
+      localTasks: [],
+      options: {
+        group: 'weekday'
+      }
     };
   },
   computed: {
@@ -46,10 +49,6 @@ export default {
 
     future() {
       return isFuture(this.date);
-    },
-
-    sorteredTasks() {
-      return this.localTasks.sort((a, b) => +a.order - +b.order) || [];
     }
   },
   watch: {
@@ -60,18 +59,7 @@ export default {
     }
   },
   methods: {
-    array_move(arr, old_index, new_index) {
-      if (new_index >= arr.length) {
-        var k = new_index - arr.length + 1;
-        while (k--) {
-          arr.push(undefined);
-        }
-      }
-      arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
-      return arr; // for testing
-    },
     addTask(event) {
-      // event.preventDefault();
       var markedRenderer = new marked.Renderer() ;
       markedRenderer.paragraph = function(text) {
         return text + '\n';
@@ -93,14 +81,20 @@ export default {
       this.$emit('updateTask', task);
     },
 
+    removedFromList(event) {
+      this.$emit('movedFromList', {event, date: this.date});
+    },
+
+    addedToList(event) {
+      this.$emit('movedToList', {event, date: this.date, task: this.localTasks[event.newIndex]})
+    },
+
     updateList(event) {
-      let tasks = this.array_move(this.localTasks, event.oldIndex, event.newIndex);
-      let list = tasks.map((t, i) => {
+      this.localTasks = this.localTasks.map((t, i) => {
         t.order = i;
         return t;
       });
-      this.localTasks = list;
-      this.$emit('updateList', list);
+      this.$emit('updateList', this.localTasks);
     }
   },
   components: {
@@ -153,6 +147,7 @@ export default {
       padding: 0;
       list-style: none;
       margin: 0;
+      min-height: 200px;
     }
   }
 </style>

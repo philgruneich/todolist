@@ -13,6 +13,7 @@
         @addTask="addTask($event)"
         @updateTask="updateTask($event)"
         @updateList="updateList($event)"
+        @movedToList="movedToList($event)"
         :key=date.toString()
       ></weekday>
     </div>
@@ -81,7 +82,7 @@ export default {
           return isSameDay(cache.day, date);
         });
 
-        if (lookup) return lookup.tasks;
+        if (lookup) return lookup.tasks.sort((a, b) => +a.order - +b.order);
 
         return [];
       });
@@ -137,8 +138,56 @@ export default {
       });
     },
 
+    movedToList(data) {
+      const event = data.event;
+      const newdate = data.date;
+      let task = data.task;
+      const olddate = task.duedate;
+
+      // Looks for old cache
+      let oldCacheIndex = this.cachedData.findIndex((cache) => {
+        return isSameDay(cache.day, olddate);
+      });
+
+      if (oldCacheIndex > -1) {
+        let taskIndex  = this.cachedData[oldCacheIndex].tasks.findIndex((cache) => {
+          return cache.id == task.id;
+        });
+
+        if (taskIndex > -1) {
+          // Removes from previous cache
+          this.cachedData[oldCacheIndex].tasks.splice(taskIndex, 1);
+
+          // Updates order from the previous tasks
+          this.updateList(this.cachedData[oldCacheIndex].tasks);
+
+          // Looks for new cache
+          let newCacheIndex = this.cachedData.findIndex((cache) => {
+            return isSameDay(cache.day, newdate);
+          });
+
+          task.duedate = newdate;
+          task.order = +event.newIndex;
+
+          if (newCacheIndex > -1) {
+            this.cachedData[newCacheIndex].tasks.splice(+task.order, 0, task);
+            this.updateList(this.cachedData[newCacheIndex].tasks)
+          } else {
+            let nn = this.cachedData.push({
+              day: newdate,
+              tasks: [task]
+            });
+            this.updateTask(task);
+          }
+        }
+      }
+
+
+
+    },
+
     updateTask(task) {
-      this.queue.then(() => {
+      return this.queue.then(() => {
         return new Promise((resolve, reject) => {
           if (this.database) {
             let taskTransaction = this.database.transaction(["task"], "readwrite");
