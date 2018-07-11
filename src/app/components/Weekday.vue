@@ -53,6 +53,7 @@ export default {
   },
   watch: {
     'tasks': {
+      immediate: true,
       handler(tasks) {
         this.localTasks = this.tasks;
       }

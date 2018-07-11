@@ -16,24 +16,29 @@
         @movedToList="movedToList($event)"
         :key=date.toString()
       ></weekday>
+      <div v-if="!rangeOfDates.length">You're looking for tasks in a date that doesn't exists. Sounds really hard, doesn't it?</div>
     </div>
     <aside>
       <button type="button" aria-title="Avançar um dia." @click="daysForward(1)">&gt;</button>
       <button type="button" aria-title="Avançar 5 dias." @click="daysForward(5)">&gt;&gt;</button>
+      <input type="date" @change="setDate($event.target.value)" @blur="$event.target.value = ''">
     </aside>
+    <upcoming :tasks="upcomingTasks" @goto="setDate($event)"></upcoming>
+
   </section>
 </template>
 
 <script>
 import weekday from './components/Weekday.vue';
+import upcoming from './components/Upcoming.vue';
 import { format, isAfter, isBefore, isValid, isPast, isFuture, differenceInDays, eachDay, isToday, addDays, subDays, isSameDay } from 'date-fns';
-
 
 export default {
   name: 'Tasks',
   data() {
     return {
       rangeOfDates: [],
+      upcomingTasks: [],
       queue: Promise.resolve(),
       cachedData: []
     };
@@ -73,6 +78,7 @@ export default {
     request.onsuccess = (event) => {
       this.database = request.result;
       this.loadData();
+
     }
   },
   computed: {
@@ -181,9 +187,6 @@ export default {
           }
         }
       }
-
-
-
     },
 
     updateTask(task) {
@@ -243,8 +246,36 @@ export default {
       }
     },
 
+    loadUpcomingEvents() {
+      const N_EVENTS = 20;
+      let taskTransaction = this.database.transaction('task', 'readonly');
+      let taskObjectStore = taskTransaction.objectStore('task');
+      let taskRange = IDBKeyRange.lowerBound(new Date());
+      let taskIndex = taskObjectStore.index('duedate');
+      // let taskGet = taskIndex.getAll(taskRange);
+      let taskCursor = taskIndex.openCursor();
+      let i = 0;
+      let tasks = [];
+
+      taskCursor.onsuccess = (event) => {
+        let cursor = event.target.result;
+        if(cursor && i < N_EVENTS) {
+          tasks.push(cursor.value);
+          i++;
+          cursor.continue();
+        } else {
+          this.upcomingTasks = tasks.sort((a, b) => {
+            let n = a.duedate - b.duedate;
+            if (n !== 0) return n;
+            return a.order - b.order;
+          });
+        }
+      }
+    },
+
     loadData() {
-      let taskTransaction = this.database.transaction(['task']);
+      if (!this.rangeOfDates.length) return false;
+      let taskTransaction = this.database.transaction('task');
       let taskObjectStore = taskTransaction.objectStore('task');
       let taskRange = IDBKeyRange.bound(this.rangeOfDates[0], this.rangeOfDates[4]);
       let taskIndex = taskObjectStore.index('duedate');
@@ -252,11 +283,13 @@ export default {
 
       taskGet.onsuccess = (event) => {
         taskGet.result.forEach(this.addTaskToCache.bind(this));
+        this.loadUpcomingEvents();
       }
     }
   },
   components: {
-    weekday
+    weekday,
+    upcoming
   }
 };
 </script>
