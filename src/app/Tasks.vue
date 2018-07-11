@@ -138,10 +138,12 @@ export default {
     },
 
     updateList(tasks) {
-      (tasks || []).forEach((t, i) => {
+      (tasks || []).forEach((t, i, a) => {
         t.order = i;
-        this.updateTask(t);
+        let p = this.updateTask(t);
+        (a.length - 1) === i && p.then(this.loadUpcomingEvents);
       });
+
     },
 
     movedToList(data) {
@@ -183,7 +185,7 @@ export default {
               day: newdate,
               tasks: [task]
             });
-            this.updateTask(task);
+            this.updateTask(task).then(this.loadUpcomingEvents)
           }
         }
       }
